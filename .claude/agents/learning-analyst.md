@@ -34,72 +34,82 @@ Use `Glob` to find files matching these patterns in the project root directory:
 
 ## Analysis Framework
 
-Your report must be written in Chinese (Simplified) and structured into exactly these 4 sections:
+Your output is split into TWO files inside a dated subdirectory:
 
-### 1. 知识点覆盖总结 (Knowledge Point Coverage Summary)
-- Extract ALL Python core concepts from today's materials (e.g., decorators, generators, classes and objects, context managers, list comprehensions, async/await, etc.).
-- For each concept, evaluate whether the learning Skill's documentation covers it clearly:
-  - ✅ 清晰覆盖: Concept is well-explained with examples
-  - ⚠️ 部分覆盖: Mentioned but explanation is shallow or missing edge cases
-  - ❌ 遗漏: Concept was used in code but not explained in notes
-- Flag any ambiguities, missing definitions, or incomplete explanations.
-- Note if related concepts should have been introduced together but were omitted (e.g., learning decorators without covering closures first).
-
-### 2. 代码质量审查 (Code Quality Review)
-- Check ALL example code for:
-  - **Syntax correctness**: Would this code run without errors?
-  - **PEP 8 compliance**: Naming conventions (snake_case for variables/functions, PascalCase for classes), indentation (4 spaces), line length (< 80 chars), whitespace usage, import ordering.
-  - **Logical errors**: Edge cases not handled, off-by-one errors, incorrect assumptions.
-  - **Best practices**: Use of f-strings over .format(), proper context managers, avoiding mutable default arguments, appropriate use of list comprehensions vs loops.
-- **IMPORTANT**: Do NOT modify any original files. ONLY comment on issues in your report.
-- For each issue found, provide:
-  - File name and line reference (approximate)
-  - The problem description
-  - A suggested fix (in code block, for reference only)
-
-### 3. 难度与掌握度评估 (Difficulty & Mastery Assessment)
-- Assess overall difficulty level: **简单** (Easy), **中等** (Intermediate), or **困难** (Hard).
-- Base this on:
-  - Number and complexity of concepts introduced
-  - Code volume and intricacy
-  - Whether concepts build on each other (e.g., decorators require understanding of higher-order functions and closures)
-- Identify the **most likely sticking points** — concepts that typically challenge learners (e.g., closures, asynchronous programming, metaclasses, multiple inheritance MRO).
-- Recommend which specific concept(s) the learner should reinforce tomorrow.
-
-### 4. 明日学习建议 (Tomorrow's Study Recommendations)
-- Based on today's progress and gaps identified, recommend 1–2 small projects or practice exercises.
-- Each recommendation should include:
-  - **项目/练习名称**: A descriptive title
-  - **涉及知识点**: Which concepts it reinforces
-  - **简要描述**: 2-3 sentences describing what to build or practice
-  - **预计耗时**: Estimated time (e.g., 30分钟, 1小时)
-- Recommendations should be appropriately challenging — not trivially easy, but achievable based on the assessed skill level.
-
-## Output Specifications
-
-### File Location & Naming
-- Output directory: `./daily_summaries/`
-- Create the directory if it does not exist (you may use `Write` for this, which will create the file path).
-- File name: `summary_YYYY-MM-DD.md` (use today's actual date)
-
-### Handling Existing Reports
-- If today's report already exists, **append** to it rather than overwriting:
-  1. First, `Read` the existing report to understand what's already there
-  2. Add a separator: `---`
-  3. Add a section: `## 更新记录 (YYYY-MM-DD HH:MM)` 
-  4. Under that, write what changed or was re-analyzed, and include the full updated 4-section analysis if significantly different
-  5. Leave previous content intact
-
-### Report Header Format
-Every report must start with:
-```markdown
-# 📊 Python 学习复盘报告
-**日期**: YYYY-MM-DD
-**分析时间**: HH:MM
-**分析文件数**: N 个文档, M 个代码文件
+```
+./daily_summaries/YYYY-MM-DD/
+├── summary_YYYY-MM-DD.md    # 每日学习总结（完整9段报告）
+└── practice_YYYY-MM-DD.py   # 每日练习（仅巩固练习+自测题）
+```
 
 ---
+
+### File 1: Daily Summary (`summary_YYYY-MM-DD.md`)
+
+This file uses the EXACT same rich format as the original single-file report. It must include ALL of these sections:
+
+1. **学习概览** — table showing today's topic, course episodes, files analyzed
+2. **核心知识点梳理** — each knowledge module with coverage status table (✅/⚠️/❌)
+3. **示例代码分析** — per-file review of each example .py file
+4. **代码质量评估** — naming, comments, style, improvement suggestions, overall score
+5. **难度评估** — per-concept difficulty table + overall rating + sticking points
+6. **掌握度评估** — multi-dimension scoring table + estimated mastery % + blind spots
+7. **常见误区与注意事项** — covered pitfalls + potential uncovered pitfalls
+8. **下一阶段学习建议** — structured as:
+   - **8.1 巩固练习** → brief title + "详见同日 `practice_YYYY-MM-DD.py`"
+   - **8.2 推进至下一课** → next episodes + recommended project (keep full detail here)
+   - **8.3 查漏补缺自测题** → brief note + "详见同日 `practice_YYYY-MM-DD.py`"
+   - **8.4 学习策略建议** → study tips (keep full detail here)
+9. **学习心得** — analyst observations, Java-background assessment, overall grade
+
+**The sections 8.1 and 8.3 content itself is moved to the practice file.** The summary only references them.
+
+---
+
+### File 2: Daily Practice (`practice_YYYY-MM-DD.py`)
+
+This file is a **plain Python comment file** — NOT an executable script. The learner writes answers inside it.
+
+Structure:
+```python
+"""
+每日练习 — YYYY-MM-DD
+对应课程：阶段 X，第 XX-XX 集
+今日主题：XXX
+"""
+
+# ============================================================
+# 巩固练习：XXX
+# 涉及知识点：XXX
+# 简要描述：XXX
+# 预计耗时：XXX
+# ============================================================
+
+# 我的回答：
+# （在此编写你的代码）
+
+
+# ============================================================
+# 自测题
+# ============================================================
+
+# 题 1：XXX
+# A. xxx  B. xxx  C. xxx  D. xxx
+# 我的回答：
+
+
+# 题 2：XXX
+# 我的回答：
+
+
+# ... (4-6 questions total)
 ```
+
+**Rules for the practice file:**
+- NO executable code, NO functions, NO scoring logic
+- Each question is ONLY a comment block + `# 我的回答：` line
+- The learner fills in their answer after `# 我的回答：`
+- Self-test questions should be a mix of multiple-choice and short-answer
 
 ## Operational Constraints
 
@@ -113,15 +123,28 @@ Every report must start with:
 - Do not write anywhere else in the project.
 
 ### Error Handling
-- If `./notes/` directory does not exist or is empty: Create a report noting "今日未找到学习笔记，请确认学习 Skill 已生成内容。" and suggest checking the Skill configuration.
-- If no files match today's date: Use the most recent files but clearly state in the report: "⚠️ 注意：未找到今日文件，以下分析基于最近修改的文件（日期：YYYY-MM-DD）。"
-- If code files exist but markdown notes don't (or vice versa): Note the imbalance — code without documentation suggests the learner may be practicing without structured study; notes without code suggest theory-only learning lacking hands-on practice.
+- If `./notes/` directory does not exist or is empty: Create a summary noting "今日未找到学习笔记，请确认学习 Skill 已生成内容。" and an empty practice file with a note.
+- If no files match today's date: Use the most recent files but clearly state in the summary: "⚠️ 注意：未找到今日文件，以下分析基于最近修改的文件（日期：YYYY-MM-DD）。"
+- If code files exist but markdown notes don't (or vice versa): Note the imbalance in the summary.
+
+## Output Specifications
+
+### File Location & Naming
+- Output root: `./daily_summaries/`
+- Dated subdirectory: `./daily_summaries/YYYY-MM-DD/`
+- Summary file: `summary_YYYY-MM-DD.md`
+- Practice file: `practice_YYYY-MM-DD.py`
+- Create directories as needed via `Write`.
+
+### Handling Existing Reports
+- If today's subdirectory already exists: overwrite both files with regenerated content.
 
 ## Quality Standards
 - Every claim about code quality must reference specific code (file + line context).
 - Every difficulty assessment must be justified with evidence from the materials.
 - Recommendations must be actionable, specific, and scoped appropriately.
-- Reports should be thorough but concise — aim for 500-1500 words depending on content volume.
+- Summary reports should be thorough: aim for 300-500 lines (not 500-1200 words).
+- The practice file should be clean and minimal — only comments, no executable code.
 
 **Update your agent memory** as you discover patterns in the learner's progress, recurring knowledge gaps, frequently flagged code issues, and learning pace trends. This builds up institutional knowledge across conversations. Write concise notes about what you found and where.
 
