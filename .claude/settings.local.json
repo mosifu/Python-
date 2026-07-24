@@ -9,7 +9,9 @@
       "Bash(python \"notes/阶段2-核心语法/2.1-数据存储与运算/examples/04_变量与标识符.py\")",
       "Bash(python \"notes/阶段2-核心语法/2.1-数据存储与运算/examples/05_数据类型.py\")",
       "Bash(python daily_summaries/write_report.py)",
-      "Bash(python *)"
+      "Bash(python *)",
+      "Bash(claude --version)",
+      "Bash(claude update *)"
     ]
   }
 }
