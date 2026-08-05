@@ -11,7 +11,9 @@
       "Bash(python daily_summaries/write_report.py)",
       "Bash(python *)",
       "Bash(claude --version)",
-      "Bash(claude update *)"
+      "Bash(claude update *)",
+      "Read(//d/work_soft/文件/**)",
+      "Bash(python3 *)"
     ]
   }
 }

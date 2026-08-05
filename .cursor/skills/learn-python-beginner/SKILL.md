@@ -198,16 +198,23 @@ description: >-
 **集数**：88–119
 **内容**：
 - 88 概述
-- 89–98 大模型部署（Ollama、DeepSeek API）与调用（HTTP、Apifox、会话记忆）
-- 99 提示词工程
+- 89–91 大模型部署（Ollama 本地部署）✅ 已完成
+- 92–94 网络基础知识（IP/端口/HTTP/OSI七层）✅ 已完成
+- 95 Apifox 接口测试工具（后置操作/可视化）✅ 已完成
+- 96–97 会话记忆方案 ✅ 已完成
+- 98 Python 调用 DeepSeek 模型（requests + OpenAI SDK）✅ 已完成
+- 99 提示词工程（Prompt Engineering）
 - 100–119 Streamlit 实战（界面布局、流式输出、会话管理、文件/json 操作）
 
 **Java 背景提示**：
 - HTTP 调用 ≈ Java `HttpClient` / `RestTemplate` / OkHttp
 - JSON 处理 ≈ Jackson / Gson
-- **不同**：Python AI 生态（`requests`、`streamlit`）上手更快，代码量更少
+- **不同**：Python AI 生态（`requests`、`openai`、`streamlit`）上手更快，代码量更少
 
 **里程碑项目**：用 Streamlit 搭建一个带会话记忆的 AI 聊天界面
+
+**笔记**：`./notes/阶段3-AI应用实战/3.1-大模型部署与调用.md`（第88-98集）
+**示例**：`./notes/阶段3-AI应用实战/3.1-大模型部署与调用/examples/01_调用大模型API.py`
 
 ---
 
