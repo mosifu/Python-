@@ -1,0 +1,9 @@
+{
+  "name": "mosifu",
+  "age": 18,
+  "gender": "男",
+  "hobbies": [
+    "游泳",
+    "跑步"
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "nick_name": "小兰",
+  "nature": "含蓄内敛的南方姑娘",
+  "current_session": "2026-08-15_22-04-44",
+  "messages": [
+    {
+      "role": "user",
+      "content": "hello"
+    },
+    {
+      "role": "ai",
+      "content": "Hello, love. How are you? 🥰"
+    }
+  ]
+}
