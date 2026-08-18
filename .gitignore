@@ -12,3 +12,6 @@ build/
 
 # Claude Code local settings
 .claude/settings.local.json
+
+# IDE配置
+.idea/
