@@ -9,3 +9,6 @@ venv/
 *.egg-info/
 dist/
 build/
+
+# Claude Code本地配置
+.claude/settings.local.json
