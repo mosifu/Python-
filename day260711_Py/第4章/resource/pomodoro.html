@@ -1,0 +1,933 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>番茄钟</title>
+
+<!--
+  番茄钟（Pomodoro Timer）— 单文件 Web 应用
+  ============================================
+  设计方向："静墨"（Quiet Ink）— 基于浅墨蓝配色的精致冥想风格
+
+  整体架构分为三个层次：
+  1. CSS 变量 + 样式层：定义配色、排版、布局、动画
+  2. HTML 结构层：环形计时器 + 发光层、模式按钮、控制按钮、会话计数点
+  3. JavaScript 逻辑层：计时引擎、模式切换、通知、提示音
+
+  核心数据流：
+    用户操作（点击按钮/键盘快捷键）
+      → 更新状态变量（currentMode, remainingSeconds, sessions）
+      → 调用 updateDisplay() 刷新 UI（数字 + 进度环 + 发光环）
+      → setInterval 每秒触发 tick() 递减剩余秒数
+      → 倒计时归零时触发 onTimerEnd()，播放声音 + 切换模式
+-->
+
+<!-- 排版基石：Noto Serif SC（中文衬线）+ JetBrains Mono（数字等宽） -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@200;300;400&family=Noto+Serif+SC:wght@300;400;600;700&display=swap" rel="stylesheet">
+
+<style>
+  /* ===== CSS 自定义属性（变量） ===== */
+  /*
+    集中管理配色、字体、阴影、动画参数
+    保留原有配色体系，新增排版和动效变量
+  */
+  :root {
+    /* 配色 —— 浅墨蓝 */
+    --work: #1e3a5f;
+    --short-break: #5a8a7a;
+    --long-break: #4a7a9a;
+    --bg: #e8e6df;
+    --card: #fafaf6;
+    --text: #2c3038;
+    --muted: #7a8a9a;
+
+    /* 排版 */
+    --font-body: 'Noto Serif SC', 'Songti SC', 'STSong', 'SimSun', 'PMingLiU', serif;
+    --font-mono: 'JetBrains Mono', 'SF Mono', 'Cascadia Code', 'Consolas', 'Noto Serif SC', monospace;
+
+    /* 动效缓动函数 */
+    --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+    --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+    --ease-smooth: cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /* ===== 全局重置 ===== */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  /*
+    body 背景系统 —— 三层叠加
+    Layer 1: 暖米色基底
+    Layer 2: 三个径向渐变，模拟墨色在宣纸上晕开
+    Layer 3: SVG 噪点纹理（通过 ::after 伪元素实现）
+  */
+  body {
+    font-family: var(--font-body);
+    background:
+      /* 顶部微蓝光晕 */
+      radial-gradient(ellipse 80% 50% at 50% -10%, rgba(30,58,95,0.04) 0%, transparent 70%),
+      /* 右下微绿晕染 */
+      radial-gradient(ellipse 50% 40% at 85% 100%, rgba(90,138,122,0.03) 0%, transparent 60%),
+      /* 左下微蓝晕染 */
+      radial-gradient(ellipse 40% 30% at 15% 100%, rgba(74,122,154,0.02) 0%, transparent 50%),
+      var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    min-height: -webkit-fill-available;
+    /* 禁止文字选择 */
+    user-select: none;
+    -webkit-user-select: none;
+    /* 防止入场动画和滚动条 */
+    overflow: hidden;
+    margin: 0;
+  }
+
+  /* 居中包裹层 —— 使用 CSS Grid 保证绝对正中 */
+  .center-wrapper {
+    position: fixed;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    pointer-events: none;  /* 让点击穿透到卡片 */
+  }
+
+  .center-wrapper > * {
+    pointer-events: auto;  /* 恢复卡片内点击 */
+  }
+
+  /* 噪点纹理覆盖层 —— 模拟纸张肌理 */
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    opacity: 0.025;
+    pointer-events: none;
+    z-index: 9999;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    background-repeat: repeat;
+    background-size: 256px 256px;
+  }
+
+  /* ===== 卡片容器 ===== */
+  /*
+    玻璃质感：半透明背景 + backdrop-filter 模糊
+    四层 box-shadow 模拟真实阴影衰减
+    微妙的边框渐变产生立体感
+  */
+  .container {
+    position: relative;
+    background: rgba(250, 250, 246, 0.88);
+    backdrop-filter: blur(16px) saturate(1.1);
+    -webkit-backdrop-filter: blur(16px) saturate(1.1);
+    border: 1px solid rgba(255, 255, 255, 0.6);
+    border-top-color: rgba(255, 255, 255, 0.8);
+    border-bottom-color: rgba(0, 0, 0, 0.04);
+    border-radius: 28px;
+    padding: 44px 40px 36px;
+    text-align: center;
+    width: 390px;
+    max-width: 95vw;
+    box-shadow:
+      0 0 0 1px rgba(0, 0, 0, 0.02),
+      0 2px 4px rgba(0, 0, 0, 0.02),
+      0 8px 24px rgba(0, 0, 0, 0.04),
+      0 32px 80px rgba(0, 0, 0, 0.06);
+    /* 入场动画 */
+    animation: fadeSlideUp 0.7s var(--ease-out) both;
+  }
+
+  /* 底部装饰线 —— 随模式颜色变化 */
+  .container::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 28px;
+    right: 28px;
+    height: 2px;
+    border-radius: 1px;
+    background: var(--current-color, var(--work));
+    transition: background 0.5s ease;
+    opacity: 0.3;
+  }
+
+  /* ===== SVG 环形进度条区域 ===== */
+  /*
+    实现原理：
+    - 三层同心圆：背景轨道 → 发光扩散层 → 主进度环
+    - stroke-dasharray = 圆周长（2πr ≈ 282.743）
+    - stroke-dashoffset = 圆周长 × (1 - 剩余比例)
+    - CSS transition 让进度环平滑滑动而非跳变
+    - SVG 旋转 -90° 让进度从 12 点钟方向开始递减
+  */
+  .timer-ring {
+    position: relative;
+    width: 260px;
+    height: 260px;
+    margin: 0 auto 24px;
+    /* 入场动画 */
+    animation: scaleIn 0.6s var(--ease-spring) 0.15s both;
+  }
+
+  .timer-ring svg {
+    transform: rotate(-90deg);
+    width: 100%;
+    height: 100%;
+  }
+
+  /* 背景轨道 */
+  .ring-bg {
+    fill: none;
+    stroke: #ddd9d0;
+    stroke-width: 10;
+  }
+
+  /* 发光扩散层 —— 宽 16px、低透明度，跟随进度移动 */
+  .ring-glow {
+    fill: none;
+    stroke: var(--work);
+    stroke-width: 16;
+    stroke-linecap: round;
+    opacity: 0.15;
+    transition:
+      stroke-dashoffset 1s linear,
+      stroke 0.5s ease,
+      opacity 0.5s ease;
+  }
+
+  /* 主进度环 */
+  .ring-progress {
+    fill: none;
+    stroke: var(--work);
+    stroke-width: 10;
+    stroke-linecap: round;
+    transition:
+      stroke-dashoffset 1s linear,
+      stroke 0.5s ease;
+    filter: drop-shadow(0 0 4px rgba(30, 58, 95, 0.15));
+  }
+
+  /* 瞬切模式（重置/切换模式时禁用过渡） */
+  .ring-progress.no-animate,
+  .ring-glow.no-animate {
+    transition: stroke 0.5s ease, opacity 0.5s ease !important;
+  }
+
+  /* ===== 中心时间显示区 ===== */
+  .time-display {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .time-text {
+    font-family: var(--font-mono);
+    font-size: 58px;
+    font-weight: 200;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.06em;
+    color: #2c3038;
+    line-height: 1;
+  }
+
+  .time-label {
+    font-family: var(--font-body);
+    font-size: 12px;
+    font-weight: 400;
+    color: var(--muted);
+    letter-spacing: 0.18em;
+    margin-top: 8px;
+    transition: color 0.4s ease;
+  }
+
+  /* 运行时呼吸动画 */
+  .timer-ring.running .time-label {
+    animation: breathe 3s ease-in-out infinite;
+  }
+
+  /* ===== 模式切换按钮组 ===== */
+  .modes {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 28px;
+    background: rgba(0, 0, 0, 0.03);
+    border-radius: 14px;
+    padding: 4px;
+    /* 入场动画 */
+    animation: fadeSlideUp 0.5s var(--ease-out) 0.3s both;
+  }
+
+  .mode-btn {
+    flex: 1;
+    padding: 9px 6px;
+    border: none;
+    border-radius: 10px;
+    font-family: var(--font-body);
+    font-size: 13px;
+    font-weight: 400;
+    letter-spacing: 0.05em;
+    cursor: pointer;
+    background: transparent;
+    color: var(--muted);
+    transition: all 0.35s var(--ease-smooth);
+    position: relative;
+  }
+
+  .mode-btn:hover {
+    color: var(--text);
+    background: rgba(255, 255, 255, 0.4);
+  }
+
+  .mode-btn:focus-visible {
+    outline: 2px solid var(--work);
+    outline-offset: 2px;
+  }
+
+  .mode-btn.active {
+    background: #fff;
+    box-shadow:
+      0 1px 4px rgba(0, 0, 0, 0.06),
+      0 0 0 1px rgba(255, 255, 255, 0.9);
+  }
+
+  /* 三种模式的激活颜色 */
+  .mode-btn.work.active  { color: var(--work); }
+  .mode-btn.short.active { color: var(--short-break); }
+  .mode-btn.long.active  { color: var(--long-break); }
+
+  /* ===== 控制按钮区 ===== */
+  .controls {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    margin-bottom: 24px;
+    /* 入场动画 */
+    animation: fadeSlideUp 0.5s var(--ease-out) 0.42s both;
+  }
+
+  .btn {
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s var(--ease-smooth);
+  }
+
+  .btn:focus-visible {
+    outline: 2px solid var(--work);
+    outline-offset: 3px;
+  }
+
+  /* 开始/暂停按钮 —— 视觉重心 */
+  .btn-start {
+    background: #fff;
+    color: var(--work);
+    width: 76px;
+    height: 76px;
+    font-size: 24px;
+    box-shadow:
+      0 2px 8px rgba(30, 58, 95, 0.12),
+      0 8px 32px rgba(30, 58, 95, 0.08);
+  }
+
+  .btn-start:hover {
+    transform: scale(1.05);
+    box-shadow:
+      0 4px 14px rgba(30, 58, 95, 0.16),
+      0 12px 44px rgba(30, 58, 95, 0.1);
+  }
+
+  .btn-start:active {
+    transform: scale(0.97);
+    box-shadow:
+      0 1px 4px rgba(30, 58, 95, 0.1),
+      0 4px 16px rgba(30, 58, 95, 0.06);
+    transition: all 0.1s var(--ease-smooth);
+  }
+
+  /* 重置按钮 —— 极简、低调 */
+  .btn-reset {
+    background: transparent;
+    color: #c0beb8;
+    width: 44px;
+    height: 44px;
+    font-size: 18px;
+  }
+
+  .btn-reset:hover {
+    color: var(--muted);
+    background: rgba(0, 0, 0, 0.03);
+  }
+
+  .btn-reset:active {
+    transform: scale(0.9);
+    transition: all 0.1s ease;
+  }
+
+  /* ===== 会话计数点 ===== */
+  .sessions {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    align-items: center;
+    /* 入场动画 */
+    animation: fadeSlideUp 0.5s var(--ease-out) 0.54s both;
+  }
+
+  .session-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #d8d6ce;
+    transition: all 0.3s ease;
+  }
+
+  .session-dot.done {
+    background: var(--work);
+    box-shadow: 0 0 8px rgba(30, 58, 95, 0.35);
+    animation: dotPop 0.4s var(--ease-spring);
+  }
+
+  .session-label {
+    font-family: var(--font-body);
+    font-size: 12px;
+    color: #c8c6c0;
+    margin-right: 2px;
+  }
+
+  /* ===== 键盘快捷键提示 ===== */
+  .keyboard-hints {
+    margin-top: 20px;
+    font-family: var(--font-body);
+    font-size: 10px;
+    color: #c8c6c0;
+    letter-spacing: 0.05em;
+    animation: fadeSlideUp 0.5s var(--ease-out) 0.66s both;
+  }
+
+  .keyboard-hints kbd {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    padding: 2px 6px;
+    border: 1px solid #ddd9d0;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.5);
+    color: #b0aea8;
+    margin: 0 1px;
+  }
+
+  /* ===== 动画关键帧 ===== */
+
+  /* 入场：从下方淡入上浮 */
+  @keyframes fadeSlideUp {
+    from { opacity: 0; transform: translateY(24px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* 入场：环形区域从中心弹性放大 */
+  @keyframes scaleIn {
+    from { opacity: 0; transform: scale(0.85); }
+    to   { opacity: 1; transform: scale(1); }
+  }
+
+  /* 运行中：状态标签呼吸 */
+  @keyframes breathe {
+    0%, 100% { opacity: 1; }
+    50%      { opacity: 0.45; }
+  }
+
+  /* 圆点激活：弹性缩放 */
+  @keyframes dotPop {
+    0%   { transform: scale(0); opacity: 0; }
+    60%  { transform: scale(1.35); }
+    100% { transform: scale(1); opacity: 1; }
+  }
+
+  /* 计时结束：进度环呼吸发光 */
+  @keyframes pulseGlow {
+    0%, 100% { filter: drop-shadow(0 0 4px rgba(30,58,95,0.15)); }
+    50%      { filter: drop-shadow(0 0 16px rgba(30,58,95,0.35)); }
+  }
+
+  .timer-ring.alert .ring-progress {
+    animation: pulseGlow 0.5s ease 4;
+  }
+
+  /* ===== 响应式适配 ===== */
+  @media (max-width: 420px) {
+    .container {
+      padding: 32px 24px 28px;
+      border-radius: 24px;
+      width: 92vw;
+    }
+
+    .timer-ring {
+      width: 220px;
+      height: 220px;
+      margin-bottom: 20px;
+    }
+
+    .time-text {
+      font-size: 48px;
+    }
+
+    .btn-start {
+      width: 66px;
+      height: 66px;
+      font-size: 22px;
+    }
+
+    .keyboard-hints {
+      display: none; /* 移动端隐藏键盘提示 */
+    }
+  }
+</style>
+</head>
+<body>
+
+<!--
+  HTML 结构说明：
+  - .container 卡片容器（position: relative 用于底部装饰线）
+  - .timer-ring 区：SVG 三环系统 + 时间数字叠加
+  - .modes 区：三个模式切换按钮
+  - .controls 区：重置 + 开始/暂停
+  - .sessions 区：4 个进度圆点
+  - .keyboard-hints 区：快捷键提示
+-->
+
+<div class="center-wrapper">
+<div class="container">
+  <!-- 环形进度条 + 中心时间 -->
+  <div class="timer-ring" id="timerRing">
+    <!--
+      SVG viewBox="0 0 100 100" 建立 100×100 坐标系
+      circle r="45" → 周长 = 2π × 45 ≈ 282.743
+
+      三环系统（从下到上）：
+      1. ring-bg   —— 背景轨道（浅灰）
+      2. ring-glow —— 发光扩散层（宽线条、低透明度）
+      3. ring-progress —— 主进度环（标准宽度）
+
+      初始 stroke-dashoffset="0" 表示进度满格
+      JS 通过增大 offset 来"缩减"进度弧
+    -->
+    <svg viewBox="0 0 100 100">
+      <circle class="ring-bg" cx="50" cy="50" r="45"/>
+      <circle class="ring-glow" id="glow" cx="50" cy="50" r="45"
+              stroke-dasharray="282.743" stroke-dashoffset="0"/>
+      <circle class="ring-progress" id="ring" cx="50" cy="50" r="45"
+              stroke-dasharray="282.743" stroke-dashoffset="0"/>
+    </svg>
+    <!-- 时间文字覆盖在 SVG 上方 -->
+    <div class="time-display">
+      <span class="time-text" id="timer">25:00</span>
+      <span class="time-label" id="status">准备开始</span>
+    </div>
+  </div>
+
+  <!-- 模式切换按钮 -->
+  <div class="modes">
+    <button class="mode-btn work active" data-mode="work">工作</button>
+    <button class="mode-btn short" data-mode="short">短休息</button>
+    <button class="mode-btn long" data-mode="long">长休息</button>
+  </div>
+
+  <!-- 控制按钮 -->
+  <div class="controls">
+    <button class="btn btn-reset" id="resetBtn" title="重置 (R)">⟳</button>
+    <button class="btn btn-start" id="startBtn" title="开始/暂停 (Space)">▶</button>
+  </div>
+
+  <!-- 4 个会话进度圆点 -->
+  <div class="sessions">
+    <span class="session-label">#</span>
+    <div class="session-dot" id="dot1"></div>
+    <div class="session-dot" id="dot2"></div>
+    <div class="session-dot" id="dot3"></div>
+    <div class="session-dot" id="dot4"></div>
+  </div>
+
+  <!-- 键盘快捷键提示（桌面端可见） -->
+  <div class="keyboard-hints">
+    <kbd>Space</kbd> 开始/暂停 · <kbd>R</kbd> 重置 · <kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> 切换模式
+  </div>
+</div>
+</div>
+
+<script>
+  // ============================================================
+  //  常量定义
+  // ============================================================
+
+  // 圆周长 = 2πr，r=45（与 SVG circle 的 r 属性一致）
+  const CIRCUMFERENCE = 2 * Math.PI * 45; // ≈ 282.743
+
+  /*
+    MODES — 三种计时模式的配置
+    ----------------------------------
+    工作模式  : 25 分钟（标准番茄时长）
+    短休息模式: 5 分钟
+    长休息模式: 15 分钟（每 4 个番茄后触发）
+
+    label: 显示在进度环下方状态栏的文字
+    minutes: 倒计时总时长
+    color:  进度环和按钮的主题色
+  */
+  const MODES = {
+    work:   { label: '工作', minutes: 25, color: '#1e3a5f' },
+    short:  { label: '短休息', minutes: 5,  color: '#5a8a7a' },
+    long:   { label: '长休息', minutes: 15, color: '#4a7a9a' },
+  };
+
+  // ============================================================
+  //  状态变量
+  // ============================================================
+
+  let currentMode      = 'work';
+  let totalSeconds     = MODES.work.minutes * 60;
+  let remainingSeconds = totalSeconds;
+  let timerId          = null;
+  let sessions         = 0;
+
+  // ============================================================
+  //  DOM 引用缓存
+  // ============================================================
+
+  const timerEl    = document.getElementById('timer');
+  const statusEl   = document.getElementById('status');
+  const ringEl     = document.getElementById('ring');
+  const glowEl     = document.getElementById('glow');
+  const startBtn   = document.getElementById('startBtn');
+  const resetBtn   = document.getElementById('resetBtn');
+  const timerRing  = document.getElementById('timerRing');
+  const container  = document.querySelector('.container');
+  const modeBtns   = document.querySelectorAll('.mode-btn');
+  const dots       = [1, 2, 3, 4].map(n => document.getElementById('dot' + n));
+
+  // ============================================================
+  //  工具函数
+  // ============================================================
+
+  /**
+   * formatTime — 将秒数格式化为 MM:SS 显示
+   */
+  function formatTime(s) {
+    const m   = Math.floor(s / 60);
+    const sec = s % 60;
+    return String(m).padStart(2, '0') + ':' + String(sec).padStart(2, '0');
+  }
+
+  // ============================================================
+  //  UI 更新函数
+  // ============================================================
+
+  /**
+   * updateDisplay — 刷新所有视觉元素
+   * 同时更新进度环和发光环的 stroke-dashoffset
+   */
+  function updateDisplay() {
+    timerEl.textContent = formatTime(remainingSeconds);
+
+    const pct = remainingSeconds / totalSeconds;
+    const offset = CIRCUMFERENCE * (1 - pct);
+    ringEl.style.strokeDashoffset = offset;
+    glowEl.style.strokeDashoffset = offset;
+
+    document.title = formatTime(remainingSeconds) + ' - 番茄钟';
+  }
+
+  /**
+   * updateRingInstant — 瞬切进度环（无过渡动画）
+   * 用于重置和模式切换场景
+   */
+  function updateRingInstant() {
+    ringEl.classList.add('no-animate');
+    glowEl.classList.add('no-animate');
+    updateDisplay();
+    // 强制回流后恢复过渡
+    ringEl.offsetHeight;
+    ringEl.classList.remove('no-animate');
+    glowEl.classList.remove('no-animate');
+  }
+
+  /**
+   * updateDots — 根据 sessions 刷新底部圆点
+   * 前 sessions 个圆点添加 .done 类
+   */
+  function updateDots() {
+    dots.forEach((d, i) => {
+      const shouldBeDone = i < sessions;
+      const isDone = d.classList.contains('done');
+      // 只在状态变化时操作，避免重复触发动画
+      if (shouldBeDone === isDone) return;
+      if (shouldBeDone) {
+        // 先确保移除，强制回流后再添加以重新触发 CSS 动画
+        d.classList.remove('done');
+        d.offsetHeight;
+        d.classList.add('done');
+      } else {
+        d.classList.remove('done');
+      }
+    });
+  }
+
+  /**
+   * updateContainerColor — 更新卡片底部装饰线颜色
+   */
+  function updateContainerColor(color) {
+    container.style.setProperty('--current-color', color);
+  }
+
+  // ============================================================
+  //  模式切换
+  // ============================================================
+
+  /**
+   * setMode — 切换到指定模式
+   * 注意：此函数不停止计时器，调用方需先调用 stopTimer()
+   */
+  function setMode(mode) {
+    currentMode      = mode;
+    totalSeconds     = MODES[mode].minutes * 60;
+    remainingSeconds = totalSeconds;
+
+    const color = MODES[mode].color;
+
+    // 同步进度环、发光环和按钮的颜色
+    ringEl.style.stroke = color;
+    glowEl.style.stroke = color;
+    startBtn.style.color = color;
+    updateContainerColor(color);
+
+    // 切换模式按钮的激活态
+    modeBtns.forEach(b => {
+      b.classList.remove('active');
+      if (b.dataset.mode === mode) b.classList.add('active');
+    });
+
+    updateRingInstant();
+    statusEl.textContent = MODES[mode].label;
+  }
+
+  // ============================================================
+  //  计时器控制
+  // ============================================================
+
+  function stopTimer() {
+    if (timerId) {
+      clearInterval(timerId);
+      timerId = null;
+    }
+  }
+
+  /**
+   * tick — 每秒回调，计时器的心跳
+   */
+  function tick() {
+    if (remainingSeconds <= 1) {
+      stopTimer();
+      remainingSeconds = 0;
+      updateDisplay();
+      startBtn.textContent = '▶';
+      timerRing.classList.remove('running');
+      onTimerEnd();
+      return;
+    }
+    remainingSeconds--;
+    updateDisplay();
+  }
+
+  function startTimer() {
+    if (timerId) return;
+    statusEl.textContent = '进行中…';
+    startBtn.textContent = '⏸';
+    timerRing.classList.add('running');
+    timerId = setInterval(tick, 1000);
+  }
+
+  function pauseTimer() {
+    stopTimer();
+    startBtn.textContent = '▶';
+    statusEl.textContent = '已暂停';
+    timerRing.classList.remove('running');
+  }
+
+  function resetTimer() {
+    stopTimer();
+    remainingSeconds = totalSeconds;
+    startBtn.textContent = '▶';
+    statusEl.textContent = MODES[currentMode].label;
+    timerRing.classList.remove('running');
+    updateRingInstant();
+  }
+
+  // ============================================================
+  //  提示音（Web Audio API）
+  // ============================================================
+
+  function playSound() {
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      [523.25, 659.25, 783.99].forEach((freq, i) => {
+        const osc  = ctx.createOscillator();
+        const gain = ctx.createGain();
+
+        osc.type = 'sine';
+        osc.frequency.value = freq;
+
+        gain.gain.setValueAtTime(0.15, ctx.currentTime + i * 0.15);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + i * 0.15 + 0.4);
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+
+        osc.start(ctx.currentTime + i * 0.15);
+        osc.stop(ctx.currentTime + i * 0.15 + 0.4);
+      });
+    } catch (_) { /* 静默忽略 */ }
+  }
+
+  // ============================================================
+  //  桌面通知
+  // ============================================================
+
+  function notify(title, body) {
+    if (Notification.permission === 'granted') {
+      new Notification(title, {
+        body,
+        icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="45" fill="%231e3a5f"/><text x="50" y="58" text-anchor="middle" font-size="40" fill="white">🍅</text></svg>'
+      });
+    } else if (Notification.permission === 'default') {
+      Notification.requestPermission().then(p => {
+        if (p === 'granted') notify(title, body);
+      });
+    }
+  }
+
+  // ============================================================
+  //  计时结束处理
+  // ============================================================
+
+  function onTimerEnd() {
+    playSound();
+    // 触发提示发光动画
+    timerRing.classList.add('alert');
+    setTimeout(() => timerRing.classList.remove('alert'), 2200);
+
+    if (currentMode === 'work') {
+      sessions++;
+      updateDots();
+
+      if (sessions >= 4) {
+        setMode('long');
+        sessions = 0;
+        updateDots();
+        notify('🍅 工作完成！', '已完成 4 个番茄，该长休息了 ~');
+      } else {
+        setMode('short');
+        notify('🍅 休息一下', '番茄完成，休息 5 分钟吧 ~');
+      }
+    } else {
+      setMode('work');
+      notify('⏰ 时间到', '休息结束，开始新的番茄！');
+    }
+  }
+
+  // ============================================================
+  //  事件绑定
+  // ============================================================
+
+  startBtn.addEventListener('click', () => {
+    if (timerId) {
+      pauseTimer();
+    } else {
+      startTimer();
+    }
+  });
+
+  resetBtn.addEventListener('click', resetTimer);
+
+  modeBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      stopTimer();
+      startBtn.textContent = '▶';
+      timerRing.classList.remove('running');
+      setMode(btn.dataset.mode);
+    });
+  });
+
+  /**
+   * 键盘快捷键
+   * Space  → 开始/暂停
+   * R      → 重置
+   * 1/2/3  → 切换工作/短休息/长休息
+   */
+  document.addEventListener('keydown', (e) => {
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+    switch (e.code) {
+      case 'Space':
+        e.preventDefault();
+        if (timerId) {
+          pauseTimer();
+        } else {
+          startTimer();
+        }
+        break;
+      case 'KeyR':
+        e.preventDefault();
+        resetTimer();
+        break;
+      case 'Digit1':
+      case 'Numpad1':
+        e.preventDefault();
+        stopTimer();
+        startBtn.textContent = '▶';
+        timerRing.classList.remove('running');
+        setMode('work');
+        break;
+      case 'Digit2':
+      case 'Numpad2':
+        e.preventDefault();
+        stopTimer();
+        startBtn.textContent = '▶';
+        timerRing.classList.remove('running');
+        setMode('short');
+        break;
+      case 'Digit3':
+      case 'Numpad3':
+        e.preventDefault();
+        stopTimer();
+        startBtn.textContent = '▶';
+        timerRing.classList.remove('running');
+        setMode('long');
+        break;
+    }
+  });
+
+  /**
+   * 首次点击页面时请求通知权限
+   */
+  document.addEventListener('click', () => {
+    if (Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+  }, { once: true });
+
+  // ============================================================
+  //  初始化
+  // ============================================================
+
+  updateDisplay();
+  updateDots();
+  updateContainerColor(MODES.work.color);
+</script>
+</body>
+</html>
