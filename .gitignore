@@ -12,3 +12,12 @@ build/
 
 # Claude Code local settings
 .claude/settings.local.json
+
+# IDE配置
+.idea/
+
+# Claude Code本地配置
+.claude/settings.local.json
+
+# learning-analyst本地记忆（含用户学习画像，隐私）
+.claude/agent-memory/
