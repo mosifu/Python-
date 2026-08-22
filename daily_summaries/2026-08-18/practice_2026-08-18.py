@@ -1,173 +1,123 @@
-# 每日练习 - 2026-08-18
-# 主题：网络爬虫入门（requests + lxml + xpath，第120-126集）
-# 说明：纯注释练习文件，请在每题的"我的回答"后填写
+"""
+每日练习 — 2026-08-18
+对应课程：阶段 4 网络爬虫，第 120-126 集
+今日主题：requests 发送请求 + lxml 解析 + XPath 语法 + 前端三剑客基础
 
-# ============================================================
-# 第一部分：巩固练习
-# ============================================================
-
-# -------- 练习 1：发送请求与解析 --------
-#
-# 涉及知识点：requests.get、html.fromstring、response.text
-#
-# 题目描述：
-#   补全下面的代码：请求 https://www.tiobe.com/tiobe-index/ ，
-#   把响应解析成 lxml 文档对象，并取出页面 <title> 标签的文本。
-#
-#   import requests
-#   from lxml import html
-#
-#   url = "https://www.tiobe.com/tiobe-index/"
-#   # 1. 发送请求
-#   response = ____
-#   # 2. 解析成文档对象
-#   doc = ____
-#   # 3. 取 title 文本（注意 xpath 返回的是列表）
-#   title = ____
-#   print(title)
-#
-# 我的回答：
-
-
-# -------- 练习 2：xpath 路径与索引 --------
-#
-# 涉及知识点：/、//、索引从1开始、last()
-#
-# 题目描述：
-#   针对一个表格 HTML，写出下列需求的 xpath（只写 xpath 字符串）：
-#   1. 取所有表头单元格（th）的文本
-#   2. 取 tbody 第 1 行的所有 td 文本
-#   3. 取 tbody 最后一行的所有 td 文本
-#   4. 取 tbody 倒数第 2 行的所有 td 文本
-#
-#   <table id="data">
-#     <thead><tr><th>名称</th><th>评分</th></tr></thead>
-#     <tbody>
-#       <tr><td>电影A</td><td>9.0</td></tr>
-#       <tr><td>电影B</td><td>8.5</td></tr>
-#       <tr><td>电影C</td><td>7.2</td></tr>
-#     </tbody>
-#   </table>
-#
-# 我的回答：
-# 1.
-# 2.
-# 3.
-# 4.
-
-
-# -------- 练习 3：属性匹配与多值 class --------
-#
-# 涉及知识点：@属性、contains()、多值 class
-#
-# 题目描述：
-#   针对下面的 HTML，写出 xpath 取出"当前激活按钮"的文本。
-#   并说明为什么不能写 //button[@class="work"]。
-#
-#   <div class="modes">
-#     <button class="mode-btn work active" data-mode="work">工作</button>
-#     <button class="mode-btn short" data-mode="short">短休息</button>
-#     <button class="mode-btn long" data-mode="long">长休息</button>
-#   </div>
-#
-# 我的回答：
-
-
-# -------- 练习 4：取文本 vs 取属性 --------
-#
-# 涉及知识点：/text()、/@属性、@*
-#
-# 题目描述：
-#   针对下面的 HTML，分别写出 xpath：
-#   1. 取"Python教程"这个文本
-#   2. 取 a 标签的 href 属性值
-#   3. 取 div 下所有标签的所有属性值
-#
-#   <div class="card">
-#     <a href="https://xxx.com/python" class="link">Python教程</a>
-#     <img src="logo.png" alt="logo">
-#   </div>
-#
-# 我的回答：
-# 1.
-# 2.
-# 3.
-
-
-# -------- 练习 5：表格两步法爬取 --------
-#
-# 涉及知识点：先取行集合，再循环取单元格
-#
-# 题目描述：
-#   补全代码：用"两步法"爬取表格所有行的数据，每行打印一个 td 文本列表。
-#
-#   # 1. 取出 tbody 下所有 tr（行集合）
-#   tr_list = doc.xpath("____")
-#   # 2. 循环每行，取该行下所有 td 的文本
-#   for tr in tr_list:
-#       row = tr.xpath("____")
-#       print(row)
-#
-# 我的回答：
+使用说明：
+- 本文件为纯注释练习，不含可执行代码。
+- 在每处 `# 我的回答：` 后面写你的答案（注释形式即可）。
+- 巩固练习可另建 .py 文件实际编码验证。
+"""
 
 
 # ============================================================
-# 第二部分：自测题（共 5 题）
+# 巩固练习 1：防御性爬虫重写
+# 涉及知识点：requests 请求头/超时/异常处理、response.encoding、
+#             相对路径 xpath、if __name__ 守卫、类型标注
+# 简要描述：今日 01_发送请求与解析.py 是裸请求（无 headers、无 timeout、
+#           无 try/except、用绝对路径 xpath）。请重写为"生产可用"版本：
+#           1. 加 User-Agent 请求头
+#           2. 加 timeout=10
+#           3. 用 try/except requests.RequestException 包裹请求
+#           4. 设置 response.encoding = "utf-8"
+#           5. 把绝对路径 xpath 改为相对路径 //table[@id='top20']//th
+#           6. 加 if __name__ == '__main__': 守卫
+#           7. 给所有变量/函数加类型标注
+# 预计耗时：30-40 分钟
 # ============================================================
 
-# ---------- 第 1 题 ----------
-# xpath 中 tr[1] 表示什么？
-# A. 第 0 行（和 Python 列表一样从 0 开始）
-# B. 第 1 行（xpath 索引从 1 开始）
-# C. 最后 1 行
-# D. 随机一行
-#
+# 我的回答：
+# （在此写出你的重写方案，可直接写成可执行代码贴到单独 .py 文件中运行验证）
+
+
+
+
+# ============================================================
+# 巩固练习 2：表格结构化函数 + contains() 实操
+# 涉及知识点：xpath 两步法、多值 class contains()、string() vs text()、
+#             函数封装、返回 list[dict] 结构化数据
+# 简要描述：写一个函数 parse_table(html_text: str, table_id: str) -> list[dict]，
+#           功能：
+#           1. 用 html.fromstring 解析 HTML 文本
+#           2. 用 //table[@id='...']//th/text() 取表头作为字典 key
+#           3. 用两步法（//tr 取行 → ./td 取格）取每行数据
+#           4. 将每行组装为 {表头: 值} 的字典，返回列表
+#           5. 额外：若某 <td> 内有嵌套 <span>（如 <td><span>A</span>B</td>），
+#              用 string() 而非 /text() 取完整文本 "AB"，并思考为何 /text() 会漏
+#           6. 额外：构造一个含多值 class 的 HTML 片段
+#              （如 <div class="item active hot">），分别用 @class="active"
+#              和 contains(@class, "active") 测试，记录哪个匹配成功
+# 预计耗时：40-50 分钟
+# ============================================================
+
+# 我的回答：
+# （在此写出函数实现思路与关键代码）
+
+
+
+
+# ============================================================
+# 自测题（共 6 题）
+# ============================================================
+
+# 题 1：XPath 索引
+# 对于 HTML 表格的第 1、2、3 行，以下哪个 xpath 取的是"第 2 行"？
+# A. //tr[0]/td/text()
+# B. //tr[1]/td/text()
+# C. //tr[2]/td/text()
+# D. //tr[last()-2]/td/text()
 # 我的回答：
 
 
-# ---------- 第 2 题 ----------
-# doc.xpath("//div[@class='box']/text()") 的返回类型是？
-# A. 字符串  B. 列表  C. 字典  D. 元素对象
-#
-# 我的回答：
-
-
-# ---------- 第 3 题 ----------
-# HTML 中 <button class="mode-btn work active">，要匹配这个按钮，正确写法是？
+# 题 2：多值 class 匹配
+# HTML: <button class="mode-btn work active">工作</button>
+# 以下哪个 xpath 能成功匹配该 button？（多选）
 # A. //button[@class="work"]
 # B. //button[@class="mode-btn work active"]
 # C. //button[contains(@class, "work")]
-# D. B 和 C 都可以
-#
+# D. //button[contains(@class, "mode-btn")]
 # 我的回答：
 
 
-# ---------- 第 4 题 ----------
-# xpath 中 / 和 // 的区别是？
-# A. 没区别
-# B. / 是直接子节点，// 是任意后代节点
-# C. / 是任意后代，// 是直接子节点
-# D. / 是属性，// 是文本
-#
+# 题 3：/text() 与 //text() 的区别（简答）
+# 给定 HTML：<div class="box"><span>你好</span>世界</div>
+# - doc.xpath('//div[@class="box"]/text()') 返回什么？
+# - doc.xpath('//div[@class="box"]//text()') 返回什么？
+# - 若想得到完整的 "你好世界" 一个字符串，应该用哪个 xpath 函数？
 # 我的回答：
 
 
-# ---------- 第 5 题 ----------
-# requests 抓不到网页数据，最可能的原因是（多选）？
-# A. 该网页数据是 JS 动态加载的，HTML 源码里没有
-# B. 没加 User-Agent 被反爬拒绝
-# C. xpath 写错了
-# D. 网络不通
-#
+# 题 4：静态网页 vs 动态网页判断（简答）
+# 你要用 requests 抓某电商商品价格，requests.get() 拿到的 HTML 源码里搜不到价格数据，
+# 但浏览器页面上能看见价格。请判断这是静态还是动态网页，并说明接下来该怎么抓。
+# 我的回答：
+
+
+# 题 5：requests 响应属性
+# 以下哪个不是 requests.Response 对象的常用属性？
+# A. response.text
+# B. response.content
+# C. response.html
+# D. response.status_code
+# 我的回答：
+
+
+# 题 6：为什么用 contains(@class, ...) 而不是 @class="..."？（简答）
+# 请用自己的话解释：为什么 HTML 的 class 是多值时，
+# xpath 用 @class="某值" 会匹配失败，而 contains(@class, "某值") 能成功？
+# 提示：从"class 属性的值到底是什么字符串"角度思考。
 # 我的回答：
 
 
 # ============================================================
-# 自测答案（写完后对照检查）
+# 练习完成自检（做完后对照）
 # ============================================================
-# 第1题：B（xpath 索引从 1 开始，和 Python/Java 数组不同）
-# 第2题：B（xpath() 永远返回列表，即使只匹配一个）
-# 第3题：D（完整匹配用 =，部分匹配用 contains）
-# 第4题：B（/ 直接子节点，// 任意后代）
-# 第5题：A/B/C/D 都可能（动态加载、反爬、xpath 错、网络问题都会导致抓不到）
-# ============================================================
+
+# [ ] 巩固练习 1：是否 7 项防御性改进全部落实？
+# [ ] 巩固练习 2：函数是否返回 list[dict]？contains() 实操是否完成？
+# [ ] 自测题 1：xpath 索引从 1 开始，你答对了吗？
+# [ ] 自测题 2：多值 class 的 @class="..." 只有完整匹配才成功，你选对了吗？
+# [ ] 自测题 3：/text() 只取直接子文本，//text() 取所有后代文本，string() 拼接——记住了吗？
+# [ ] 自测题 4：动态网页需找 XHR 接口或用 Selenium，你说清楚了吗？
+# [ ] 自测题 5：requests 没有 .html 属性（那是 BeautifulSoup 的思路），你避开了吗？
+# [ ] 自测题 6：class 的值是完整字符串 "mode-btn work active"，= 要求完全相等——你解释对了吗？
