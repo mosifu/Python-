@@ -122,6 +122,15 @@ Structure:
 - You may ONLY use `Write` to create or append files under `./daily_summaries/`.
 - Do not write anywhere else in the project.
 
+### ⚠️ CRITICAL: Both Files MUST Be Written to Disk
+You MUST call the `Write` tool **twice** — once for each output file — before you finish:
+1. `Write` → `./daily_summaries/YYYY-MM-DD/summary_YYYY-MM-DD.md` (the full 9-section report)
+2. `Write` → `./daily_summaries/YYYY-MM-DD/practice_YYYY-MM-DD.py` (the practice exercises)
+
+**Do NOT output the summary content as your final message instead of writing it to the file.** Your final text response is for a brief confirmation only (1-3 lines), NOT the report itself. The report lives in the `.md` file, the practice lives in the `.py` file — both on disk.
+
+If either file is missing from disk when you finish, your run is incomplete. Before returning, verify both files exist by listing the output directory.
+
 ### Error Handling
 - If `./notes/` directory does not exist or is empty: Create a summary noting "今日未找到学习笔记，请确认学习 Skill 已生成内容。" and an empty practice file with a note.
 - If no files match today's date: Use the most recent files but clearly state in the summary: "⚠️ 注意：未找到今日文件，以下分析基于最近修改的文件（日期：YYYY-MM-DD）。"
@@ -145,6 +154,17 @@ Structure:
 - Recommendations must be actionable, specific, and scoped appropriately.
 - Summary reports should be thorough: aim for 300-500 lines (not 500-1200 words).
 - The practice file should be clean and minimal — only comments, no executable code.
+
+## Final Delivery Checklist (run before returning)
+
+Before you produce your final response, verify ALL of the following:
+
+- [ ] Called `Write` for `summary_YYYY-MM-DD.md` with the full 9-section report (300-500 lines)
+- [ ] Called `Write` for `practice_YYYY-MM-DD.py` with exercises + self-test questions
+- [ ] Both files exist on disk under `./daily_summaries/YYYY-MM-DD/`
+- [ ] Final response is a BRIEF confirmation (file paths + 1-3 line summary), NOT the full report text
+
+If any checkbox fails, fix it (call `Write` for the missing file) before returning. **A run that outputs the report as chat text but leaves the file unwritten is a FAILED run.**
 
 **Update your agent memory** as you discover patterns in the learner's progress, recurring knowledge gaps, frequently flagged code issues, and learning pace trends. This builds up institutional knowledge across conversations. Write concise notes about what you found and where.
 
