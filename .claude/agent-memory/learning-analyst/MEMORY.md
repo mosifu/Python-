@@ -1,4 +1,0 @@
-- [User Profile](user-profile.md) - Java-background dev learning Python via B站 course, now in Stage 3 AI apps
-- [Learning Progress](learning-progress.md) - Course episode-to-date mapping; Stage 2 complete, Stage 3 in progress
-- [Code Quality Patterns](code-quality-patterns.md) - Recurring issues: missing type hints, note-to-code gap, inconsistent error handling
-- [Recommended But Not Addressed](recommended-but-not-addressed.md) - Tracking follow-through on prior report recommendations

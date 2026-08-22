@@ -9,3 +9,6 @@ venv/
 *.egg-info/
 dist/
 build/
+
+# learning-analyst本地记忆（含用户学习画像，隐私）
+.claude/agent-memory/
