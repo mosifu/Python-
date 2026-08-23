@@ -1,12 +1,48 @@
+import re
 import requests
 import csv
 from lxml import html
 
 # 定义常量
-MOVIE_LIST_FILE = "csv_data/movie_list.csv"
+MOVIE_LIST_FILE = "csv_data/movie_list2.csv"
 TMDB_BASE_URL = "https://www.themoviedb.org"    # 网站基础链接
 TMDB_TOP_URL = "https://www.themoviedb.org/movie/top-rated" # 高分电影链接(第一页数据)
 TMDB_TOP_URL_PAGE = "https://www.themoviedb.org/discover/movie/items"   # 分页请求的地址
+
+# 清洗数据: 年份 (xxxx) -> xxxx
+def get_movie_year(movie_years: list) -> str:
+    year =  movie_years[0].strip() if movie_years else ''
+    if year:
+        year_match = re.search(r"\d{4}", year)
+        return year_match.group() if year_match else ''
+    else:
+        return year
+
+# 清洗数据: 上映时间 xxxx-xx-xx (xx) -> xxxx-xx-xx
+def get_movie_start(movie_starts: list) -> str:
+    start = movie_starts[0].strip() if movie_starts else ''
+    if start:
+        start_match = re.search(r"\d{4}-\d{2}-\d{2}", start)
+        return start_match.group() if start_match else ''   # group()将match对象转成str字符串
+    else:
+        return start
+
+# 清洗数据: 时长 xxh xxm -> xxm
+def get_movie_times(movie_times: list) -> str:
+    time = movie_times[0].strip() if movie_times else ''
+    if not time:
+        return time
+    # 获取小时和分钟
+    hour = re.search(r"(\d+)h", time)
+    mint = re.search(r"(\d+)m", time)
+    # 判断是否有值
+    hour_res = int(hour.group(1)) if hour else 0    # search 返回的是match对象会匹配到h,用group()转换为xxh,所有使用group(1)指定第一组即h前面的数字
+    min_res = int(mint.group(1)) if mint else 0
+    if not min_res and not hour_res:
+        return ''
+    #总时长
+    movie_time = hour_res * 60 + min_res
+    return f"{movie_time}m"
 
 # 根据电影详情链接获取电影详情数据
 def get_movie_info(movie_info_url):
@@ -30,10 +66,10 @@ def get_movie_info(movie_info_url):
     # 3.构建成字典值
     movie_info = {
         "电影名": movie_names[0].strip() if movie_names else '',
-        "年份": movie_years[0].strip() if movie_years else '',
-        "上映时间": movie_starts[0].strip() if movie_starts else '',
+        "年份": get_movie_year(movie_years),  # 清洗(1994) -> 1994
+        "上映时间": get_movie_start(movie_starts),    # 清洗 1994-09-23 (US) -> 1994-09-23
         "类型": ','.join(movie_tags) if movie_tags else '',
-        "时长": movie_times[0].strip() if movie_times else '',
+        "时长": get_movie_times(movie_times),     # 清洗 2h22m -> 142m 时长改成分钟
         "评分": movie_scores[0].strip() if movie_scores else '',
         "语言": ','.join(movie_languages) if movie_languages else '',
         "导演": ','.join(movie_directors) if movie_directors else '',
