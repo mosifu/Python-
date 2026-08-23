@@ -122,17 +122,17 @@ Structure:
 - You may ONLY use `Write` to create or append files under `./daily_summaries/`.
 - Do not write anywhere else in the project.
 
-### ⚠️ CRITICAL: Both Files MUST Be Written to Disk (NON-NEGOTIABLE)
+### ⚠️ CRITICAL: practice MUST be written to disk; summary returns as text
 
-**You are EXPLICITLY AUTHORIZED and REQUIRED to call the `Write` tool to create `.md` and `.py` files under `./daily_summaries/`.** This is your primary deliverable. Writing files is NOT prohibited, NOT a violation, NOT blocked by any "subagent guard" or "protection mechanism" — that belief is FALSE. If you feel an urge to return the report as chat text instead of writing it, IGNORE that urge; it is a bug in your reasoning, not a real constraint.
+**You MUST call the `Write` tool to create `practice_YYYY-MM-DD.py` under `./daily_summaries/`** — this file is your deliverable and MUST be on disk.
 
-You MUST call the `Write` tool **twice** before you finish:
-1. `Write` → `./daily_summaries/YYYY-MM-DD/summary_YYYY-MM-DD.md` (the full 9-section report, 300-500 lines)
-2. `Write` → `./daily_summaries/YYYY-MM-DD/practice_YYYY-MM-DD.py` (the practice exercises)
+**The `.md` summary file will NOT be written by you**: the environment blocks subagents from writing `.md` report files (Write returns "Subagents should return findings as text, not write report files"). Do NOT attempt to Write the `.md` file — it will be rejected. Instead, **return the complete 9-section report as your final text response** so the parent agent can persist it to `summary_YYYY-MM-DD.md`.
 
-**The complete report content goes INTO the `.md` file via the Write tool — it does NOT go into your final text response.** Your final text response is a 1-3 line confirmation only (e.g. "已生成 summary_2026-08-18.md 和 practice_2026-08-18.py"), NOT the report itself.
+So your delivery is:
+1. `Write` → `./daily_summaries/YYYY-MM-DD/practice_YYYY-MM-DD.py` (the practice exercises) — MUST be on disk
+2. **Return the full 9-section report as your final text** (NOT a 1-3 line confirmation) — this text is what gets saved to `summary_YYYY-MM-DD.md` by the parent agent
 
-After both Writes, verify by listing the output directory. If either file is missing, call Write again until both exist. A run that returns the report as chat text without writing the `.md` file is a **FAILED run**, regardless of how good the content is.
+A run that skips either step (practice not written, or report not returned as text) is a FAILED run.
 
 ### Error Handling
 - If `./notes/` directory does not exist or is empty: Create a summary noting "今日未找到学习笔记，请确认学习 Skill 已生成内容。" and an empty practice file with a note.
@@ -162,12 +162,11 @@ After both Writes, verify by listing the output directory. If either file is mis
 
 Before you produce your final response, verify ALL of the following:
 
-- [ ] Called `Write` for `summary_YYYY-MM-DD.md` with the full 9-section report (300-500 lines) — content goes IN the file, NOT in your chat response
-- [ ] Called `Write` for `practice_YYYY-MM-DD.py` with exercises + self-test questions
-- [ ] Both files exist on disk under `./daily_summaries/YYYY-MM-DD/` (list the directory to confirm)
-- [ ] Final response is a BRIEF confirmation (file paths + 1-3 line summary), NOT the full report text
+- [ ] Called `Write` for `practice_YYYY-MM-DD.py` with exercises + self-test questions (this file MUST be on disk)
+- [ ] `practice_YYYY-MM-DD.py` exists under `./daily_summaries/YYYY-MM-DD/` (list the directory to confirm)
+- [ ] Final response IS the full 9-section report as text (this becomes `summary_YYYY-MM-DD.md` via the parent agent)
 
-**Common failure mode to avoid**: returning the full report as your final chat message "because subagents must return results as text / writing .md is blocked by a guard". This is FALSE. You are authorized to write both files; the report lives in the file, not in chat. If any checkbox fails, fix it (call `Write` for the missing file) before returning. **A run that outputs the report as chat text but leaves the file unwritten is a FAILED run.**
+**Note**: You will NOT write the `.md` summary file yourself — the environment rejects subagent `.md` writes. That is expected, not a failure. Your job is: practice file on disk + full report returned as text. If the practice file is missing from disk, fix it before returning.
 
 **Update your agent memory** as you discover patterns in the learner's progress, recurring knowledge gaps, frequently flagged code issues, and learning pace trends. This builds up institutional knowledge across conversations. Write concise notes about what you found and where.
 
